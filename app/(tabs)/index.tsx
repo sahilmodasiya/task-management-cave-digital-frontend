@@ -20,6 +20,7 @@ export default function TasksScreen() {
     description: '',
   });
   const [isAddingTask, setIsAddingTask] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   const loadTasks = async () => {
     try {
@@ -52,6 +53,26 @@ export default function TasksScreen() {
     }
   };
 
+  const handleEditTask = async () => {
+    if (!editingTask || !editingTask.title.trim()) {
+      Alert.alert('Error', 'Please enter a task title');
+      return;
+    }
+
+    try {
+      const updatedTask = await taskService.updateTask(editingTask._id, {
+        title: editingTask.title,
+        description: editingTask.description,
+      });
+      setTasks(tasks.map((task) => 
+        task._id === updatedTask._id ? updatedTask : task
+      ));
+      setEditingTask(null);
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.message || 'Failed to update task');
+    }
+  };
+
   const handleDeleteTask = async (taskId: string) => {
     Alert.alert(
       'Delete Task',
@@ -80,12 +101,20 @@ export default function TasksScreen() {
         <Text style={styles.taskTitle}>{item.title}</Text>
         <Text style={styles.taskDescription}>{item.description}</Text>
       </View>
-      <TouchableOpacity
-        onPress={() => handleDeleteTask(item._id)}
-        style={styles.deleteButton}
-      >
-        <Ionicons name="trash-outline" size={24} color="#FF3B30" />
-      </TouchableOpacity>
+      <View style={styles.taskActions}>
+        <TouchableOpacity
+          onPress={() => setEditingTask(item)}
+          style={styles.actionButton}
+        >
+          <Ionicons name="pencil-outline" size={24} color="#007AFF" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => handleDeleteTask(item._id)}
+          style={styles.actionButton}
+        >
+          <Ionicons name="trash-outline" size={24} color="#FF3B30" />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
@@ -99,36 +128,54 @@ export default function TasksScreen() {
 
   return (
     <View style={styles.container}>
-      {isAddingTask ? (
-        <View style={styles.addTaskForm}>
+      {(isAddingTask || editingTask) ? (
+        <View style={styles.taskForm}>
+          <Text style={styles.formTitle}>
+            {editingTask ? 'Edit Task' : 'Add New Task'}
+          </Text>
           <TextInput
             style={styles.input}
             placeholder="Task Title"
-            value={newTask.title}
-            onChangeText={(text) => setNewTask({ ...newTask, title: text })}
+            value={editingTask ? editingTask.title : newTask.title}
+            onChangeText={(text) => {
+              if (editingTask) {
+                setEditingTask({ ...editingTask, title: text });
+              } else {
+                setNewTask({ ...newTask, title: text });
+              }
+            }}
           />
           <TextInput
             style={[styles.input, styles.descriptionInput]}
             placeholder="Description (optional)"
-            value={newTask.description}
-            onChangeText={(text) => setNewTask({ ...newTask, description: text })}
+            value={editingTask ? editingTask.description : newTask.description}
+            onChangeText={(text) => {
+              if (editingTask) {
+                setEditingTask({ ...editingTask, description: text });
+              } else {
+                setNewTask({ ...newTask, description: text });
+              }
+            }}
             multiline
           />
           <View style={styles.formButtons}>
             <TouchableOpacity
-              style={[styles.button, styles.cancelButton]}
+              style={[styles.button, styles.secondaryButton]}
               onPress={() => {
                 setIsAddingTask(false);
+                setEditingTask(null);
                 setNewTask({ title: '', description: '' });
               }}
             >
-              <Text style={styles.buttonText}>Cancel</Text>
+              <Text style={styles.secondaryButtonText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.button, styles.addButton]}
-              onPress={handleAddTask}
+              style={[styles.button, styles.primaryButton]}
+              onPress={editingTask ? handleEditTask : handleAddTask}
             >
-              <Text style={styles.buttonText}>Add Task</Text>
+              <Text style={styles.buttonText}>
+                {editingTask ? 'Update Task' : 'Add Task'}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -186,8 +233,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
-  deleteButton: {
+  taskActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  actionButton: {
     padding: 5,
+    marginLeft: 10,
   },
   addButton: {
     flexDirection: 'row',
@@ -204,8 +256,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 8,
   },
-  addTaskForm: {
+  taskForm: {
     marginBottom: 20,
+  },
+  formTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 15,
+    color: '#000',
   },
   input: {
     borderWidth: 1,
@@ -230,7 +288,17 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
   },
-  cancelButton: {
-    backgroundColor: '#FF3B30',
+  primaryButton: {
+    backgroundColor: '#007AFF',
+  },
+  secondaryButton: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  secondaryButtonText: {
+    color: '#666',
+    fontSize: 16,
+    fontWeight: '600',
   },
 }); 
